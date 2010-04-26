@@ -246,4 +246,44 @@ class TestBasic < Test::Unit::TestCase
       end
     end
   end
+
+  def test_fork_reactor_with_opening_socks
+    svr_pid = Kernel.fork {
+      EM.run do
+        EM.start_server('localhost', 9393)
+      end
+    }
+
+    EM.run do
+      c = EM.connect('localhost', 9393) { |m|
+        m.instance_eval {
+          def connection_completed
+            @complete_flag = true
+          end
+
+          def unbind
+            @unbound_flag = true
+          end
+        }
+      }
+
+      EM.next_tick {
+        # calls EM::relase_machine inside which caused shutdown() to
+        # live sockets.
+        EM.fork_reactor {
+          EM.next_tick { EM.stop }
+        }
+
+        EM.add_timer(0.1) {
+          assert(c.instance_variable_get(:@complete_flag) == true)
+          assert(c.instance_variable_get(:@unbound_flag) != true)
+
+          EM.next_tick { EM.stop }
+        }
+      }
+    end
+
+  ensure
+    Process.kill('TERM', svr_pid)
+  end
 end

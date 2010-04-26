@@ -136,7 +136,6 @@ void EventableDescriptor::Close()
 {
 	// Close the socket right now. Intended for emergencies.
 	if (MySocket != INVALID_SOCKET) {
-		shutdown (MySocket, 1);
 		closesocket (MySocket);
 		MySocket = INVALID_SOCKET;
 	}
